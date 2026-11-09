@@ -1,0 +1,99 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: cafenet-db
+    environment:
+      POSTGRES_DB: cafenet
+      POSTGRES_USER: cafenet
+      POSTGRES_PASSWORD: cafenet
+    ports:
+      - "5434:5432"
+    volumes:
+      - cafenet_db:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U cafenet -d cafenet" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mongo:
+    image: mongo:7
+    container_name: cafenet-mongo
+    environment:
+      MONGO_INITDB_DATABASE: cafenet_reviews
+    ports:
+      - "27018:27017"
+    volumes:
+      - cafenet_mongo:/data/db
+    healthcheck:
+      test: [ "CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand({ping:1}).ok' | grep -q 1" ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: cafenet-redis
+    command: [ "redis-server", "--appendonly", "yes" ]
+    ports:
+      - "6380:6379"
+    volumes:
+      - cafenet_redis:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: .
+    container_name: cafenet-api
+    environment:
+      APP_PORT: 8090
+      DB_URL: jdbc:postgresql://db:5432/cafenet
+      DB_USER: cafenet
+      DB_PASSWORD: cafenet
+      MONGO_URI: mongodb://mongo:27017/cafenet_reviews
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "8090:8090"
+    depends_on:
+      db:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -q -O - http://localhost:8090/api/ping || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  adminer:
+    image: adminer:5
+    container_name: cafenet-adminer
+    ports:
+      - "8091:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  mongo-express:
+    image: mongo-express:1
+    container_name: cafenet-mongo-express
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017/
+      ME_CONFIG_BASICAUTH: "false"
+    ports:
+      - "8092:8081"
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  cafenet_db:
+  cafenet_mongo:
+  cafenet_redis:

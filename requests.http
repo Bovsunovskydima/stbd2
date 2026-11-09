@@ -1,0 +1,119 @@
+@baseUrl = http://localhost:8090
+
+### ping
+GET {{baseUrl}}/api/ping
+
+### замовлення: філія 1, бариста 1, клієнт 2
+### філії 1-3, працівники 1-4, клієнти 1-5, позиції меню 1-10
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+
+{
+  "branchId": 1,
+  "cashierId": 1,
+  "clientId": 2,
+  "channel": "HALL",
+  "lines": [
+    {"menuItemId": 3, "quantity": 2},
+    {"menuItemId": 7, "quantity": 1}
+  ]
+}
+
+### друге замовлення — для відгуку з іншої філії
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+
+{
+  "branchId": 3,
+  "cashierId": 4,
+  "clientId": 5,
+  "channel": "TAKEAWAY",
+  "lines": [
+    {"menuItemId": 4, "quantity": 1}
+  ]
+}
+
+### лишити відгук на закрите замовлення
+POST {{baseUrl}}/api/reviews/from-order/1
+Content-Type: application/json
+
+{
+  "rating": 4,
+  "text": "Капучино чудове, чізкейк трохи сухуватий.",
+  "source": "QR",
+  "aspects": [
+    {"name": "кава", "score": 5},
+    {"name": "сервіс", "score": 4},
+    {"name": "швидкість", "score": 4}
+  ],
+  "items": [
+    {"menuItemId": 3, "rating": 5, "comment": "ідеальна пінка"},
+    {"menuItemId": 7, "rating": 3, "comment": "сухуватий"}
+  ],
+  "tags": ["швидко", "затишно"],
+  "photos": ["https://cdn.cafenet.example/reviews/demo-1.jpg"]
+}
+
+### відгук без фото й без оцінок позицій — у тій самій колекції
+POST {{baseUrl}}/api/reviews/from-order/2
+Content-Type: application/json
+
+{
+  "rating": 2,
+  "text": "Довго чекав, кава ледь тепла.",
+  "source": "SITE",
+  "aspects": [
+    {"name": "швидкість", "score": 1},
+    {"name": "кава", "score": 2}
+  ],
+  "tags": ["черга"]
+}
+
+### повний відгук за номером (спершу Redis, далі MongoDB)
+GET {{baseUrl}}/api/reviews/RV-0000001
+
+### усі відгуки філії за період
+GET {{baseUrl}}/api/reviews?branchId=1&from=2026-01-01T00:00:00&to=2027-01-01T00:00:00
+
+### середня оцінка по філіях
+GET {{baseUrl}}/api/reviews/branch-ratings?from=2026-01-01T00:00:00&to=2027-01-01T00:00:00
+
+### середні оцінки за аспектами — агрегація $unwind + $group
+GET {{baseUrl}}/api/reviews/aspect-stats?from=2026-01-01T00:00:00&to=2027-01-01T00:00:00
+
+### пошук за міткою — поля, якого немає в реляційній моделі відгуку
+GET {{baseUrl}}/api/reviews/by-tag?tag=швидко&limit=20
+
+### відповідь менеджера — оновлює документ і скидає кеш
+POST {{baseUrl}}/api/reviews/RV-0000002/reply
+Content-Type: application/json
+
+{
+  "staffId": 2,
+  "staffName": "Андрій Шевчук",
+  "text": "Дякуємо за відгук, розберемось із ситуацією."
+}
+
+### лічильники дня: STRING + HASH
+GET {{baseUrl}}/api/live/counters
+
+### рейтинг філій за день: два ZSET
+GET {{baseUrl}}/api/live/branch-board?limit=5
+
+### стрічка останніх відгуків: LIST
+GET {{baseUrl}}/api/live/feed?limit=10
+
+### кеш відгуку й залишок часу життя: STRING + TTL
+GET {{baseUrl}}/api/live/cache/RV-0000001
+
+### чи можна лишити ще один відгук на замовлення: ключ із часом життя
+GET {{baseUrl}}/api/live/cooldown/1
+
+### прогін на 5 000 відгуків — очищає колекцію reviews і таблиці review*
+POST {{baseUrl}}/api/benchmark/run?reviews=5000&iterations=150&warmup=40
+
+### прогін на 20 000 відгуків
+POST {{baseUrl}}/api/benchmark/run?reviews=20000&iterations=150&warmup=40
+
+### прибрати згенеровані дані
+DELETE {{baseUrl}}/api/benchmark

@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/changesets/01-core.sql
+      relativeToChangelogFile: false
+  - include:
+      file: db/changelog/changesets/02-core-api.sql
+      relativeToChangelogFile: false
+  - include:
+      file: db/changelog/changesets/03-reviews.sql
+      relativeToChangelogFile: false
+  - include:
+      file: db/changelog/changesets/04-reviews-api.sql
+      relativeToChangelogFile: false
+  - include:
+      file: db/changelog/changesets/05-demo-data.sql
+      relativeToChangelogFile: false
